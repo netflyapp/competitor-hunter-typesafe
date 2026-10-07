@@ -2,6 +2,15 @@ MIT License
 
 Copyright (c) 2026 Charles J Dove
 
+This repository is a modified copy. The original work is Competitor Hunter by
+Charles J Dove (Charlie Automates), MIT licensed:
+https://github.com/charlesdove977/competitor-hunter
+
+Modifications in this copy (2026, Miłosz Zając / netflyapp): Jev is called
+through the TypeSafe console (api.typesafe.ai/v1/systemone) instead of
+OpenRouter, via a bundled caller in engine/jev_typesafe.py. Scoring, ranking,
+the paid filter, the conductor and the web UI are unchanged from the original.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

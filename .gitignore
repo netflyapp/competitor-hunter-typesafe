@@ -2,6 +2,7 @@
 runs/
 library/
 studio/
+reports/
 roster.json
 settings.json
 local.json
@@ -13,3 +14,11 @@ server.log
 __pycache__/
 *.pyc
 .DS_Store
+
+# whisper virtualenv (torch is ~800 MB)
+.venv/
+venv/
+
+# personal notes, not part of the tool
+TASK.md
+kanaly_yt_ig.md

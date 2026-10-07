@@ -103,7 +103,7 @@ def scrape_reddit(run, subs):
     return found
 IG_NOT_PROFILES = {"p", "reel", "reels", "explore", "stories", "tv", "accounts"}
 ENV_FILE = _path("env", APP / ".env")
-JEV_PY = _path("jev_py", Path.home() / ".claude" / "skills" / "claude-x-jev" / "scripts" / "jev.py")
+JEV_PY = _path("jev_py", APP / "engine" / "jev_typesafe.py")   # the bundled caller; set "jev_py" in local.json to use your own
 REPORTS = _path("reports", APP / "reports")   # the hub every hunt writes to and the app reads from (viral-discover / viral-audit write here too)
 
 

@@ -115,21 +115,49 @@ def relay_claude_line(run, line, info):
             emit(run, "fable", "warn", "Claude Code ended with an error: %s" % str(msg.get("result"))[:300])
 
 
-def openrouter_key():
-    """The shell may export the key; otherwise it is read from the app's env file."""
-    key = (os.environ.get("OPENROUTER_API_KEY") or "").strip()
+def _env_file_value(*names):
+    """First non-empty value for any of these names, from the shell env or the app's env file."""
+    for name in names:
+        key = (os.environ.get(name) or "").strip()
+        if key:
+            return key
     fallback = hunt.ENV_FILE
-    if not key and fallback.is_file():
-        for line in fallback.read_text(encoding="utf-8").splitlines():
-            if line.startswith("OPENROUTER_API_KEY="):
-                key = line.split("=", 1)[1].strip().strip('"').strip("'")
-    return key
+    if fallback.is_file():
+        lines = fallback.read_text(encoding="utf-8").splitlines()
+        for name in names:
+            for line in lines:
+                if line.startswith(name + "="):
+                    key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    if key:
+                        return key
+    return ""
+
+
+def jev_keys():
+    """Jev runs on the TypeSafe console here; OpenRouter stays as a fallback provider."""
+    return {n: _env_file_value(n) for n in ("TYPESAFE_API_KEY", "JEV", "OPENROUTER_API_KEY")}
+
+
+def jev_primary_key():
+    """The one key the engine should use: a TypeSafe key wins over a stale OpenRouter one."""
+    keys = jev_keys()
+    return keys["TYPESAFE_API_KEY"] or keys["JEV"] or keys["OPENROUTER_API_KEY"]
+
+
+def openrouter_key():
+    """The Jev key, whatever provider issued it. Kept under the old name: call sites are about Jev, not OpenRouter."""
+    return jev_primary_key()
 
 
 def child_env():
     """Explicit environment for Claude Code and the engine: never whatever the parent happened to inherit."""
     env = {k: os.environ[k] for k in ("PATH", "HOME", "USER", "LOGNAME", "SHELL", "LANG", "TMPDIR") if os.environ.get(k)}
-    env["OPENROUTER_API_KEY"] = openrouter_key()
+    env.update({k: v for k, v in jev_keys().items()})
+    # The engine reads TYPESAFE_API_KEY. If the key lives under another name in .env,
+    # export it under this one too, or the engine sends the wrong provider's key.
+    primary = jev_primary_key()
+    if primary:
+        env["TYPESAFE_API_KEY"] = primary
     return env
 
 
@@ -445,12 +473,18 @@ def env_has(name):
 
 
 def jev_credits():
-    key = openrouter_key()
-    if not key:
+    """Balance for the Settings panel, when the provider exposes one.
+
+    TypeSafe's Decision API has no public balance endpoint, so this returns None
+    there and the page shows Jev as working but balance unreadable.
+    """
+    keys = jev_keys()
+    openrouter = keys["OPENROUTER_API_KEY"]
+    if not openrouter or (keys["TYPESAFE_API_KEY"] or keys["JEV"]):
         return None
     if time.time() - credits_cache["at"] > 60:
         try:
-            req = urllib.request.Request("https://openrouter.ai/api/v1/credits", headers={"Authorization": "Bearer " + key})
+            req = urllib.request.Request("https://openrouter.ai/api/v1/credits", headers={"Authorization": "Bearer " + openrouter})
             data = json.loads(urllib.request.urlopen(req, timeout=10).read())["data"]
             credits_cache.update(at=time.time(), value=round(float(data["total_credits"]) - float(data["total_usage"]), 2))
         except Exception:

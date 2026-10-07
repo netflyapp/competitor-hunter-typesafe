@@ -1,5 +1,10 @@
 # Competitor Hunter
 
+> **This is a fork** of [charlesdove977/competitor-hunter](https://github.com/charlesdove977/competitor-hunter)
+> by Charles J Dove (Charlie Automates), MIT licensed. The tool, the scoring and
+> the web UI are his. The one change here is the connection to Jev — see
+> [What changed in this fork](#what-changed-in-this-fork).
+
 ![Competitor Hunter: Claude x Jev, the posts most likely to work for you](docs/hero-competitor-hunter.png)
 
 A local web app for creators. One click collects every post your competitors made in the last 80 days, has **Jev** (TypeSafe's decision model) judge each one, and shows you the ones most likely to work for your audience. **Claude Code** runs the hunt headlessly and tunes Jev's questions on a pilot batch. Save posts, transcribe them, watch them frame by frame, ask AI about them, and plan your next piece from your own analytics on the **My Studio** page.
@@ -7,6 +12,54 @@ A local web app for creators. One click collects every post your competitors mad
 No framework, no build step, no database. Python 3.10+ standard library, plain HTML/JS, your own API keys. Everything stays on your machine except the scrapes and the model calls.
 
 ![Light and dark, Apple-style, one blue accent](docs/screenshot-placeholder.txt)
+
+## What changed in this fork
+
+Upstream reaches Jev through **OpenRouter**. This fork talks to the **TypeSafe
+console directly**:
+
+```
+upstream   POST https://openrouter.ai/api/alpha/decisions     model typesafe/jev-1.13
+this fork  POST https://api.typesafe.ai/v1/systemone          model jev-latest
+```
+
+Same model, same price ($0.042 per 1M input tokens). What changes in practice:
+
+- **The console grants a small monthly credit**, so the first hunt often costs
+  nothing. Upstream needs an OpenRouter top-up before anything runs.
+- **One less account in the loop**, and no request metadata handed to a router.
+- **The `claude-x-jev` skill is no longer required.** `engine/jev_typesafe.py`
+  ships with the repo and is the default. `npx claude-x-jev install` still
+  works, and if you install it you can point back at it through `local.json`.
+
+Four things had to be handled to make the swap:
+
+| Problem | Fix |
+|---|---|
+| Presets carry the OpenRouter model name `typesafe/jev-1.13`, which TypeSafe rejects with `400 Unknown model` | Alias map in `engine/jev_typesafe.py` — **existing presets need no edits** |
+| TypeSafe returns token counts but no cost, and the engine reads `usage.cost` | Computed locally from the published rate, flagged `cost_is_estimate: true` |
+| TypeSafe has no public balance endpoint (5 paths checked, all 404) | Settings shows Jev as ready with no balance figure instead of a wrong one |
+| `jev status` referenced endpoints that no longer exist | Rewritten for the provider without credits/uptime endpoints |
+
+The key is read from `TYPESAFE_API_KEY` or `JEV`. `OPENROUTER_API_KEY` still
+works as a fallback, so you can run both from one checkout.
+
+Nothing else is touched: scoring, ranking, the paid filter, the conductor and
+the whole web UI are upstream's.
+
+## Setup in this fork
+
+```bash
+git clone <this repo>
+cd competitor-hunter
+cp .env.example .env           # put TYPESAFE_API_KEY in here
+cp brain.example.json brain.json
+python3 server.py --open
+```
+
+Create the Jev key at <https://console.typesafe.ai/keys>. Everything else —
+YouTube key, Apify token, Claude Code — works exactly as upstream describes in
+[QUICKSTART.md](QUICKSTART.md).
 
 ## What you get
 

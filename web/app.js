@@ -868,7 +868,7 @@ function renderHealth(state) {
   const credits = hl.jev_credits == null ? '' : ` $${hl.jev_credits.toFixed(2)}`;
   const chips = [
     [modelLabel(app.settings.model), hl.claude, 'Claude Code is not on PATH. Runs fall back to the base Jev preset.'],
-    ['Jev' + credits, hl.jev_skill && hl.jev_key, 'Jev needs the claude-x-jev skill and OPENROUTER_API_KEY.'],
+    ['Jev' + credits, hl.jev_skill && hl.jev_key, 'Jev needs the claude-x-jev skill and a Jev API key (TYPESAFE_API_KEY or OPENROUTER_API_KEY).'],
     ['YouTube', hl.youtube_key, 'YOUTUBE_DATA_API_KEY is missing from the repo .env.'],
     ['Apify', hl.apify_key, 'APIFY_API_TOKEN is missing from the repo .env. Instagram will be skipped.'],
     [`${state.window_days}-day window`, true, ''],
