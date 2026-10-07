@@ -6,6 +6,72 @@ od Charlesa Dove (Charlie Automates), MIT.
 
 ---
 
+## 2026-10-07 (3) — Adapter redukowany z 739 do 201 linii
+
+Pierwsza wersja forku skopiowała całego `jev.py` ze skilla i poprawiła cztery
+miejsca. Działało, ale tworzyło **739 linii do utrzymania**, z których apka
+używa 7 funkcji — reszta to CLI, którego nigdy nie wywołuje.
+
+Teraz `engine/jev_typesafe.py` jest **mostem, nie kopią**: uruchamia skill w
+jego własnym module i podmienia wyłącznie transport. Logika decyzyjna —
+`flatten_answers`, `apply_rules`, `is_sure`, `lint_preset`, `load_preset` —
+pochodzi ze skilla, więc `npx claude-x-jev install` dociera tu ze swoimi
+zmianami automatycznie.
+
+### Podział
+
+| Wiadomo | Skąd |
+|---|---|
+| parsowanie odpowiedzi, reguły, pewność, lint, presety | skill, bez zmian |
+| `post_json`, `get_json` (transport) | skill, bez zmian |
+| retry i obsługa błędów HTTP | skill, przez opakowanie `decide` |
+| URL, nazwa modelu, wybór klucza, koszt, `status` | most |
+
+Weryfikacja pochodzenia (nie tylko obecności):
+
+```
+flatten_answers  <- scripts/jev.py
+apply_rules      <- scripts/jev.py
+is_sure          <- scripts/jev.py
+lint_preset      <- scripts/jev.py
+load_preset      <- scripts/jev.py
+decide           <- MOST
+api_key          <- MOST
+```
+
+### Przywrócono obsługę obu dostawców
+
+Pierwsza wersja forku wiedziała tylko o TypeSafe. Teraz wybór jest automatyczny
+i nadpisywalny:
+
+- klucz `apikey_…` → TypeSafe
+- klucz `sk-or-…` → OpenRouter
+- `JEV_PROVIDER=openrouter` wymusza jawnie
+
+`api_key()` dopasowuje klucz do prefiksu dostawcy, więc klucz jednego
+dostawcy nigdy nie trafi do endpointu drugiego — dokładnie ten błąd, który
+zepsuł pierwszy hunt.
+
+### Poprawiony błąd CLI
+
+`skill.main()` wiąże subkomendę `status` z nazwy w **przestrzeni nazw skilla**,
+więc nadpisane `cmd_status` w moście nigdy nie zostało wywołane — zamiast tego
+leciał oryginalny i zgłaszał brak `OPENROUTER_API_KEY`. Naprawione przez
+podmianę referencji przed `skill.main()`. To nie było widoczne w testach
+apki, bo apka nie woła CLI.
+
+### Weryfikacja
+
+| Test | Wynik |
+|---|---|
+| `jev status` | provider, klucz, model, live call 322 ms |
+| `jev lint --preset ...` | clean |
+| `jev presets` | 4 presety ze skilla |
+| 7 pytań przez most | 17 pól, `sure: true` |
+| Pełny hunt, 3 kanały | 173 posty, $0.0114, 0 błędów |
+
+---
+
 ## 2026-10-07 — Fork: bezpośrednie połączenie z konsolą TypeSafe
 
 Zamiast przez OpenRouter. Model, cena i ranking bez zmian.

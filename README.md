@@ -28,21 +28,25 @@ Same model, same price ($0.042 per 1M input tokens). What changes in practice:
 - **The console grants a small monthly credit**, so the first hunt often costs
   nothing. Upstream needs an OpenRouter top-up before anything runs.
 - **One less account in the loop**, and no request metadata handed to a router.
-- **The `claude-x-jev` skill is no longer required.** `engine/jev_typesafe.py`
-  ships with the repo and is the default. `npx claude-x-jev install` still
-  works, and if you install it you can point back at it through `local.json`.
+- **OpenRouter still works.** Set `OPENROUTER_API_KEY` and the same preset runs
+  against OpenRouter. `JEV_PROVIDER=openrouter` forces it. The key is matched
+  to the provider by prefix, so a TypeSafe key can never be sent to OpenRouter.
 
-Four things had to be handled to make the swap:
+### The claude-x-jev skill is still used, just for logic
+
+`engine/jev_typesafe.py` loads the skill and replaces only the transport. Jev's
+decision logic — parsing answers, applying rules, confidence thresholds, preset
+linting — is the skill's, untouched. A `npx claude-x-jev install` that improves
+that logic reaches this app with no changes here.
+
+Four things had to be handled for the swap:
 
 | Problem | Fix |
 |---|---|
-| Presets carry the OpenRouter model name `typesafe/jev-1.13`, which TypeSafe rejects with `400 Unknown model` | Alias map in `engine/jev_typesafe.py` — **existing presets need no edits** |
+| Presets carry the OpenRouter model name `typesafe/jev-1.13`, which TypeSafe rejects with `400 Unknown model` | Alias map — **existing presets need no edits** |
 | TypeSafe returns token counts but no cost, and the engine reads `usage.cost` | Computed locally from the published rate, flagged `cost_is_estimate: true` |
-| TypeSafe has no public balance endpoint (5 paths checked, all 404) | Settings shows Jev as ready with no balance figure instead of a wrong one |
-| `jev status` referenced endpoints that no longer exist | Rewritten for the provider without credits/uptime endpoints |
-
-The key is read from `TYPESAFE_API_KEY` or `JEV`. `OPENROUTER_API_KEY` still
-works as a fallback, so you can run both from one checkout.
+| TypeSafe has no public balance endpoint (5 paths checked, all 404) | `jev status` points at the console instead of reporting a wrong number |
+| Skill updates overwrite the file it lives in | The caller lives in this repo and loads the skill at runtime |
 
 Nothing else is touched: scoring, ranking, the paid filter, the conductor and
 the whole web UI are upstream's.
@@ -50,9 +54,10 @@ the whole web UI are upstream's.
 ## Setup in this fork
 
 ```bash
+npx claude-x-jev install --with-commands   # provides Jev's decision logic
 git clone <this repo>
 cd competitor-hunter
-cp .env.example .env           # put TYPESAFE_API_KEY in here
+cp .env.example .env                       # put TYPESAFE_API_KEY in here
 cp brain.example.json brain.json
 python3 server.py --open
 ```
@@ -60,6 +65,9 @@ python3 server.py --open
 Create the Jev key at <https://console.typesafe.ai/keys>. Everything else —
 YouTube key, Apify token, Claude Code — works exactly as upstream describes in
 [QUICKSTART.md](QUICKSTART.md).
+
+The skill is the only added setup step over upstream, and upstream already
+required it.
 
 ## What you get
 
